@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const login = async (email, password) => {
-  const res = await api.post('/api/auth/login', { email, password });
+export const login = async (email, password, isAdmin = false) => {
+  const res = await api.post('/api/auth/login', { email, password, isAdmin });
   return res.data;
 };
 
@@ -10,8 +10,8 @@ export const register = async (name, email, password, role) => {
   return res.data;
 };
 
-export const googleLogin = async (credential, role) => {
-  const res = await api.post('/api/auth/google-login', { credential, role });
+export const googleLogin = async (credential, role, isAdmin = false) => {
+  const res = await api.post('/api/auth/google-login', { credential, role, isAdmin });
   return res.data;
 };
 

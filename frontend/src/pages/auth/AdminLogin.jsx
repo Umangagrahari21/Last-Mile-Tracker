@@ -19,13 +19,7 @@ const AdminLogin = () => {
     setError('');
     setLoading(true);
     try {
-      const user = await login(email, password);
-      if (user.role !== 'ADMIN') {
-        logout();
-        setError('Access denied. This portal is for administrators only.');
-        setLoading(false);
-        return;
-      }
+      const user = await login(email, password, true);
       navigate('/admin/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid email or password');
@@ -38,13 +32,7 @@ const AdminLogin = () => {
     setError('');
     setLoading(true);
     try {
-      const user = await loginWithGoogle(credentialResponse.credential, 'ADMIN');
-      if (user.role !== 'ADMIN') {
-        logout();
-        setError('Access denied. This portal is for administrators only.');
-        setLoading(false);
-        return;
-      }
+      const user = await loginWithGoogle(credentialResponse.credential, 'ADMIN', true);
       navigate('/admin/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Google authentication failed.');

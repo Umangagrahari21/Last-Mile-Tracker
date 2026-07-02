@@ -59,7 +59,7 @@ router.post('/register', async (req, res, next) => {
 
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, isAdmin } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -74,14 +74,15 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const roleToSign = isAdmin ? 'ADMIN' : user.role;
+    const token = jwt.sign({ id: user.id, role: roleToSign }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({
       token,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: roleToSign
       }
     });
   } catch (error) {
@@ -91,7 +92,7 @@ router.post('/login', async (req, res, next) => {
 
 router.post('/google-login', async (req, res, next) => {
   try {
-    const { credential, role } = req.body;
+    const { credential, role, isAdmin } = req.body;
     if (!credential) {
       return res.status(400).json({ error: 'Google credential token is required' });
     }
@@ -143,14 +144,15 @@ router.post('/google-login', async (req, res, next) => {
     }
 
     // Sign jwt token
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const roleToSign = isAdmin ? 'ADMIN' : user.role;
+    const token = jwt.sign({ id: user.id, role: roleToSign }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({
       token,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: roleToSign
       }
     });
   } catch (error) {

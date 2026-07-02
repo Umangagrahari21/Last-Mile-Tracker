@@ -36,8 +36,8 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    const data = await apiLogin(email, password);
+  const login = async (email, password, isAdmin = false) => {
+    const data = await apiLogin(email, password, isAdmin);
     const { token: receivedToken, user: receivedUser } = data;
     
     setToken(receivedToken);
@@ -51,8 +51,8 @@ export const AuthProvider = ({ children }) => {
     return receivedUser;
   };
 
-  const loginWithGoogle = async (credential, roleInput) => {
-    const data = await apiGoogleLogin(credential, roleInput);
+  const loginWithGoogle = async (credential, roleInput, isAdmin = false) => {
+    const data = await apiGoogleLogin(credential, roleInput, isAdmin);
     const { token: receivedToken, user: receivedUser } = data;
 
     setToken(receivedToken);
