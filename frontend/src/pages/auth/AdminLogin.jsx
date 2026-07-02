@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { Mail, Lock, AlertCircle, ArrowRight, Zap, LayoutDashboard, Users, MapPin, DollarSign } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 const AdminLogin = () => {
-  const { login, logout } = useAuth();
+  const { login, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,6 +29,25 @@ const AdminLogin = () => {
       navigate('/admin/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      const user = await loginWithGoogle(credentialResponse.credential, 'ADMIN');
+      if (user.role !== 'ADMIN') {
+        logout();
+        setError('Access denied. This portal is for administrators only.');
+        setLoading(false);
+        return;
+      }
+      navigate('/admin/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google authentication failed.');
     } finally {
       setLoading(false);
     }
@@ -145,9 +167,29 @@ const AdminLogin = () => {
               </div>
               <div className="relative flex justify-center">
                 <span className="bg-white dark:bg-slate-900 px-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                  Admin only
+                  Or login with
                 </span>
               </div>
+            </div>
+
+            {/* Google Login for Admin */}
+            <div className="flex flex-col items-center gap-2.5 mb-5">
+              {googleClientId ? (
+                <GoogleOAuthProvider clientId={googleClientId}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError('Google sign-in failed. Please try again.')}
+                    useOneTap
+                    theme="outline"
+                    shape="rectangular"
+                    width="100%"
+                  />
+                </GoogleOAuthProvider>
+              ) : (
+                <div className="w-full p-3.5 border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-xl text-xs text-center">
+                  <strong>Google Login:</strong> Add <code className="font-mono bg-amber-100 dark:bg-amber-900/30 px-1 rounded">VITE_GOOGLE_CLIENT_ID</code> to enable.
+                </div>
+              )}
             </div>
 
             {/* Security notice */}
