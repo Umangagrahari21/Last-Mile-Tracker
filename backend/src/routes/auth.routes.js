@@ -12,9 +12,9 @@ router.post('/register', async (req, res, next) => {
       return res.status(400).json({ error: 'All fields (name, email, password, role) are required' });
     }
     
-    // Check role validity
-    if (!['CUSTOMER', 'AGENT', 'ADMIN'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
+    // Check role validity (ADMIN registration is restricted for security)
+    if (!['CUSTOMER', 'AGENT'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid or restricted signup role. Admin accounts cannot be self-registered.' });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -113,10 +113,9 @@ router.post('/google-login', async (req, res, next) => {
 
     if (!user) {
       // If user doesn't exist, we register them
-      // Ensure role is valid
       const targetRole = role || 'CUSTOMER';
-      if (!['CUSTOMER', 'AGENT', 'ADMIN'].includes(targetRole)) {
-        return res.status(400).json({ error: 'Invalid signup role' });
+      if (!['CUSTOMER', 'AGENT'].includes(targetRole)) {
+        return res.status(400).json({ error: 'Invalid or restricted signup role. Admin accounts cannot be self-registered.' });
       }
 
       // Create new user with a randomized password since they use Google
