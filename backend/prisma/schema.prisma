@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  AGENT
+  ADMIN
+}
+
+enum OrderType {
+  B2B
+  B2C
+}
+
+enum PaymentType {
+  PREPAID
+  COD
+}
+
+enum OrderStatus {
+  CREATED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RESCHEDULED
+}
+
+enum AgentStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime      @default(now())
+  orders       Order[]       @relation("CustomerOrders")
+  agentOrders  Order[]       @relation("AgentOrders")
+  trackingLogs TrackingLog[]
+  agentProfile Agent?
+}
+
+model Agent {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  user          User        @relation(fields: [userId], references: [id])
+  status        AgentStatus @default(AVAILABLE)
+  currentZoneId String?
+  currentZone   Zone?       @relation(fields: [currentZoneId], references: [id])
+  orders        Order[]
+}
+
+model Zone {
+  id             String     @id @default(cuid())
+  name           String     @unique
+  areas          Area[]
+  agents         Agent[]
+  rateCardsFrom  RateCard[] @relation("ZoneFrom")
+  rateCardsTo    RateCard[] @relation("ZoneTo")
+  pickupOrders   Order[]    @relation("PickupZone")
+  dropOrders     Order[]    @relation("DropZone")
+}
+
+model Area {
+  id      String @id @default(cuid())
+  pincode String @unique
+  name    String
+  zoneId  String
+  zone    Zone   @relation(fields: [zoneId], references: [id])
+}
+
+model RateCard {
+  id           String    @id @default(cuid())
+  zoneFromId   String
+  zoneToId     String
+  orderType    OrderType
+  ratePerKg    Float
+  codSurcharge Float     @default(0)
+  zoneFrom     Zone      @relation("ZoneFrom", fields: [zoneFromId], references: [id])
+  zoneTo       Zone      @relation("ZoneTo", fields: [zoneToId], references: [id])
+
+  @@unique([zoneFromId, zoneToId, orderType])
+}
+
+model Order {
+  id               String       @id @default(cuid())
+  customerId       String
+  customer         User         @relation("CustomerOrders", fields: [customerId], references: [id])
+  agentId          String?
+  agent            User?        @relation("AgentOrders", fields: [agentId], references: [id])
+  agentProfileId   String?
+  agentProfile     Agent?       @relation(fields: [agentProfileId], references: [id])
+  pickupAddress    String
+  pickupPincode    String
+  dropAddress      String
+  dropPincode      String
+  pickupZoneId     String?
+  dropZoneId       String?
+  pickupZone       Zone?        @relation("PickupZone", fields: [pickupZoneId], references: [id])
+  dropZone         Zone?        @relation("DropZone", fields: [dropZoneId], references: [id])
+  length           Float
+  breadth          Float
+  height           Float
+  actualWeight     Float
+  volumetricWeight Float
+  billedWeight     Float
+  ratePerKg        Float
+  baseCharge       Float
+  codSurcharge     Float        @default(0)
+  totalCharge      Float
+  orderType        OrderType
+  paymentType      PaymentType
+  status           OrderStatus  @default(CREATED)
+  scheduledDate    DateTime?
+  createdAt        DateTime     @default(now())
+  trackingLogs     TrackingLog[]
+  reschedules      Reschedule[]
+}
+
+model TrackingLog {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  status    OrderStatus
+  actorId   String
+  actor     User        @relation(fields: [actorId], references: [id])
+  note      String?     @default("")
+  createdAt DateTime    @default(now())
+  // RULE: NEVER UPDATE OR DELETE rows. Append-only immutable log.
+}
+
+model Reschedule {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  newDate   DateTime
+  reason    String
+  createdAt DateTime @default(now())
+}
