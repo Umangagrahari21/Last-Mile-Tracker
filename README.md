@@ -1,134 +1,293 @@
-# Last-Mile Delivery Tracker
+# 🚀 Last-Mile Delivery Tracker
 
-A comprehensive logistics tracking platform featuring role-based portals for customers, delivery agents, and system administrators.
-
----
-
-## Setup — Backend
-
-Follow these steps to run the Node.js + Express + Prisma backend locally:
-
-1. **Navigate to the backend directory**:
-   ```bash
-   cd backend
-   ```
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Configure Environment Variables**:
-   Copy `.env.example` to `.env` and fill in the values:
-   ```bash
-   cp .env.example .env
-   ```
-   Provide valid values for:
-   - `DATABASE_URL` (PostgreSQL Connection String)
-   - `JWT_SECRET` (A strong random secret)
-   - `GMAIL_USER` (Nodemailer Gmail username)
-   - `GMAIL_APP_PASSWORD` (Gmail 16-character App Password)
-4. **Deploy Database Schema**:
-   Run the Prisma migration to set up database tables:
-   ```bash
-   npx prisma migrate dev --name init
-   npx prisma generate
-   ```
-5. **Seed the Database**:
-   Populate initial zones, areas/pincodes, rate cards, and the default admin user:
-   ```bash
-   node prisma/seed.js
-   ```
-6. **Start the server**:
-   ```bash
-   node src/index.js
-   ```
+A **full-stack last-mile logistics management platform** built with React, Node.js, Express, and PostgreSQL (via Prisma ORM). The system provides role-based portals for **Customers**, **Delivery Agents**, and **Administrators** with real-time tracking, automated agent assignment, and email notifications at every delivery milestone.
 
 ---
 
-## Setup — Frontend
-
-Follow these steps to run the Vite + React client locally:
-
-1. **Navigate to the frontend directory**:
-   ```bash
-   cd frontend
-   ```
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Configure Environment Variables**:
-   Copy `.env.example` to `.env` and fill in the values:
-   ```bash
-   cp .env.example .env
-   ```
-   Set the API endpoint:
-   - `VITE_API_BASE_URL=http://localhost:5000`
-4. **Start the development server**:
-   ```bash
-   npm run dev
-   ```
+## 📋 Table of Contents
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Backend Setup](#backend-setup)
+  - [Frontend Setup](#frontend-setup)
+- [Environment Variables](#-environment-variables)
+- [Database Schema](#-database-schema)
+- [API Reference](#-api-reference)
+- [Rate Calculation Engine](#-rate-calculation-engine)
+- [Deployment](#-deployment)
 
 ---
 
-## DB Schema
+## ✨ Features
 
-The PostgreSQL database models are defined below:
+### Customer Portal
+- ✅ Register, login (Email + Google OAuth)
+- ✅ Place orders with real-time **charge preview** (volumetric + billed weight, COD surcharge)
+- ✅ Track orders via live timeline with status logs
+- ✅ Reschedule failed deliveries with an auto-reassigned agent
+- ✅ Email notifications at every delivery status change
 
-| Model Name | Fields | Description |
-| :--- | :--- | :--- |
-| **User** | `id`, `name`, `email`, `passwordHash`, `role` (`CUSTOMER` / `AGENT` / `ADMIN`), `createdAt` | Stores user credentials, profiles, and roles. |
-| **Agent** | `id`, `userId`, `status` (`AVAILABLE` / `BUSY` / `OFFLINE`), `currentZoneId` | Represents delivery driver profiles mapped to users. |
-| **Zone** | `id`, `name` | Geographic shipping zones (North, South, East, West). |
-| **Area** | `id`, `pincode` (Unique), `name`, `zoneId` | Individual pincode locations mapped to a parent Zone. |
-| **RateCard** | `id`, `zoneFromId`, `zoneToId`, `orderType` (`B2C`/`B2B`), `ratePerKg`, `codSurcharge` | Price metrics mapping zones pairs and customer segments. |
-| **Order** | `id`, `customerId`, `agentId`, `agentProfileId`, `pickupAddress`, `pickupPincode`, `dropAddress`, `dropPincode`, `pickupZoneId`, `dropZoneId`, `length`, `breadth`, `height`, `actualWeight`, `volumetricWeight`, `billedWeight`, `ratePerKg`, `baseCharge`, `codSurcharge`, `totalCharge`, `orderType`, `paymentType`, `status`, `scheduledDate`, `createdAt` | Core shipment records detailing paths, weights, and charges. |
-| **TrackingLog** | `id`, `orderId`, `status`, `actorId`, `note`, `createdAt` | Append-only immutable log for delivery status changes. |
-| **Reschedule** | `id`, `orderId`, `newDate`, `reason`, `createdAt` | Records rescheduled dates and reasons for failed attempts. |
+### Admin Portal
+- ✅ Separate secured admin login at `/admin/login`
+- ✅ Dashboard with live analytics (order counts, agent statuses, zone heatmaps)
+- ✅ Manage **Zones** and **Areas** (pincode-to-zone mapping)
+- ✅ Configure **Rate Cards** (B2B/B2C intra/inter-zone rates + COD surcharge per zone pair)
+- ✅ Create orders on behalf of any registered customer (3-step modal)
+- ✅ Manually assign or **auto-assign** the nearest available delivery agent
+- ✅ View and manage all orders with full filtering support
 
----
-
-## API Docs
-
-The following routes are available in the Express API:
-
-### Auth Endpoints
-
-| Method | Path | Auth | Request Body | Response | Description |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/auth/register` | Public | `{ name, email, password, role }` | `{ token, user: { id, name, email, role } }` | Registers user. If `role` is `AGENT`, creates agent profile. |
-| **POST** | `/api/auth/login` | Public | `{ email, password }` | `{ token, user: { id, name, email, role } }` | Logs in and issues JWT. |
-
-### Orders & Logistics Endpoints (Section 3.7 + 3.10)
-
-| Method | Path | Auth | Request Body | Response | Description |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/orders/preview` | Verified User | `{ pickupPincode, dropPincode, length, breadth, height, actualWeight, orderType, paymentType }` | `{ volumetricWeight, billedWeight, ratePerKg, baseCharge, codSurcharge, totalCharge, pickupZoneId, dropZoneId }` | Runs calculations. Does not write to DB. |
-| **POST** | `/api/orders` | Customer / Admin | Same as preview + `{ pickupAddress, dropAddress, customerId? }` | Complete `Order` object | Creates new order, writes tracking log, sends mail. |
-| **GET** | `/api/orders` | Verified User | Query params: `?status=&zoneId=&agentId=` | Array of `Order` objects | Role-aware list. Customer reads own, Agent reads assigned, Admin reads all. |
-| **GET** | `/api/orders/:id` | Verified User | None | Detailed `Order` with `trackingLogs` & `reschedules` | Returns details for authorized users. |
-| **GET** | `/api/orders/:id/tracking` | Verified User | None | Array of `TrackingLog` objects | Returns status log list sorted by date desc. |
-| **POST** | `/api/orders/:id/assign` | Admin Only | `{ agentId }` | `{ message }` | Manually assigns agent, sets agent busy, updates status. |
-| **POST** | `/api/orders/:id/auto-assign` | Admin Only | None | `{ message, agentName }` | Auto-assigns nearest agent. |
-| **PATCH** | `/api/orders/:id/status` | Agent / Admin | `{ status, note?, rescheduleDate? }` | Updated `Order` object | Updates status after validating transitions. Frees agent on delivery/fail. |
-| **POST** | `/api/orders/:id/reschedule` | Customer Only | `{ newDate, reason }` | `{ order, autoAssigned, agentName }` | Reschedules failed order, changes status to `RESCHEDULED`, triggers auto-assign. |
+### Agent Portal
+- ✅ View assigned deliveries
+- ✅ Update delivery status in sequence (Picked Up → In Transit → Out for Delivery → Delivered / Failed)
+- ✅ Each status update triggers a customer email notification
 
 ---
 
-## Rate Calculation
+## 🛠 Tech Stack
 
-The shipping price engine follows these calculations:
-
-1. **Volumetric Weight**: Evaluates package volume using the formula `(length * breadth * height) / 5000`. The result is in kg, rounded to 2 decimals.
-2. **Billed Weight**: Calculated as `Math.max(actualWeight, volumetricWeight)`, rounded to 2 decimals.
-3. **Zone Detection**: Determines the pickup zone and drop zone by mapping the customer's pickup and drop pincodes through the `Area` database table.
-4. **Rate Card Lookup**: Looks up the `RateCard` record matching the pickup zone, drop zone, and shipping segment (`B2B` or `B2C`).
-5. **Base Charge**: Calculated as `billedWeight * rateCard.ratePerKg`, rounded to 2 decimals.
-6. **COD Surcharge**: If `paymentType === 'COD'`, applies the zone pair's `codSurcharge` (e.g. ₹25). For `PREPAID`, the surcharge is `0`.
-7. **Total Charge**: The final shipping cost equals `baseCharge + codSurcharge`.
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18, Vite, Tailwind CSS |
+| **Backend** | Node.js, Express.js |
+| **Database** | PostgreSQL (Neon Cloud) via Prisma ORM |
+| **Authentication** | JWT (JSON Web Tokens) + Google OAuth 2.0 |
+| **Email** | Nodemailer (Gmail SMTP) |
+| **Deployment** | Vercel (Frontend + Backend) |
 
 ---
 
-## Hosted URL
+## 📂 Project Structure
 
-- **Frontend App (Vercel)**: `https://lastmile-tracker-frontend.vercel.app` (Placeholder)
-- **Backend API (Railway)**: `https://lastmile-tracker-backend.up.railway.app` (Placeholder)
+```
+Last-Mile Delivery Tracker/
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          # Database models
+│   │   ├── seed.js                # Seeds default admin, zones, rate cards
+│   │   └── migrations/            # Prisma migration files
+│   ├── src/
+│   │   ├── middleware/
+│   │   │   ├── auth.js            # JWT verification middleware
+│   │   │   ├── role.js            # Role-based access control
+│   │   │   └── errorHandler.js    # Global error handler
+│   │   ├── routes/
+│   │   │   ├── auth.routes.js     # Register, Login, Google Login
+│   │   │   ├── order.routes.js    # Orders CRUD + assign + reschedule
+│   │   │   ├── admin.routes.js    # Dashboard metrics + customer list
+│   │   │   ├── agent.routes.js    # Agent management
+│   │   │   ├── zone.routes.js     # Zone + Area management
+│   │   │   └── ratecard.routes.js # Rate card configuration
+│   │   ├── services/
+│   │   │   ├── agentAssigner.js   # Auto-assign nearest available agent
+│   │   │   ├── rateCalculator.js  # Volumetric weight + charge engine
+│   │   │   ├── zoneDetector.js    # Pincode-to-zone resolution
+│   │   │   └── notificationService.js # Nodemailer email templates
+│   │   ├── app.js                 # Express app + CORS + routes
+│   │   └── index.js               # Server entry point
+│   ├── .env.example               # Environment variable template
+│   ├── package.json
+│   └── vercel.json                # Vercel serverless deployment config
+│
+├── frontend/
+│   ├── src/
+│   │   ├── api/                   # Axios API client functions
+│   │   ├── components/            # Reusable UI components (Navbar, Cards, etc.)
+│   │   ├── context/               # React Context (Auth, Theme)
+│   │   ├── hooks/                 # Custom hooks (useAuth, useOrders)
+│   │   ├── pages/
+│   │   │   ├── auth/              # Login, Register, AdminLogin
+│   │   │   ├── admin/             # Dashboard, Orders, Zones, RateCards, Agents
+│   │   │   ├── agent/             # MyDeliveries, UpdateStatus
+│   │   │   └── customer/          # PlaceOrder, MyOrders, TrackOrder
+│   │   ├── App.jsx                # Routes + role-based navigation
+│   │   ├── main.jsx               # React entry point
+│   │   └── index.css              # Global design tokens + animations
+│   ├── .env.example               # Frontend environment variable template
+│   ├── vercel.json                # SPA route rewrite config for Vercel
+│   ├── vite.config.js
+│   └── package.json
+│
+├── .gitignore                     # Excludes node_modules, .env, dist, build
+├── render.yaml                    # Render.com blueprint config
+└── README.md
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- **Node.js** v18+
+- **npm** v9+
+- A **PostgreSQL** database (Neon.tech free tier recommended)
+- A **Gmail** account with an [App Password](https://myaccount.google.com/apppasswords) generated
+
+---
+
+### Backend Setup
+
+```bash
+# 1. Navigate to backend
+cd backend
+
+# 2. Install dependencies
+npm install
+
+# 3. Copy environment template
+cp .env.example .env
+# → Fill in DATABASE_URL, JWT_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD
+
+# 4. Run database migrations
+npx prisma migrate dev --name init
+npx prisma generate
+
+# 5. Seed initial data (admin user, zones, areas, rate cards)
+node prisma/seed.js
+
+# 6. Start the server
+node src/index.js
+# → Backend runs on http://localhost:5000
+```
+
+---
+
+### Frontend Setup
+
+```bash
+# 1. Navigate to frontend
+cd frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Copy environment template
+cp .env.example .env
+# → Set VITE_API_BASE_URL=http://localhost:5000
+
+# 4. Start development server
+npm run dev
+# → Frontend runs on http://localhost:5173
+```
+
+---
+
+## 🔐 Environment Variables
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string (Neon/Supabase/local) |
+| `JWT_SECRET` | ✅ | Random secret string (min 32 characters) |
+| `GMAIL_USER` | ✅ | Gmail address used to send notification emails |
+| `GMAIL_APP_PASSWORD` | ✅ | 16-character [Google App Password](https://myaccount.google.com/apppasswords) |
+| `FRONTEND_URL` | ✅ | Your frontend URL for CORS (e.g. `http://localhost:5173`) |
+| `PORT` | Optional | Server port (defaults to `5000`) |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_API_BASE_URL` | ✅ | Backend API URL (e.g. `http://localhost:5000`) |
+| `VITE_GOOGLE_CLIENT_ID` | Optional | Google OAuth Client ID to enable Google Login |
+
+---
+
+## 🗄 Database Schema
+
+| Model | Key Fields | Purpose |
+|---|---|---|
+| **User** | `id`, `name`, `email`, `passwordHash`, `role` | Stores credentials & roles (CUSTOMER / AGENT / ADMIN) |
+| **Agent** | `userId`, `status`, `currentZoneId` | Delivery agent profile with availability status |
+| **Zone** | `id`, `name` | Geographic delivery zones (North, South, East, West) |
+| **Area** | `pincode`, `name`, `zoneId` | Pincode-to-zone mapping |
+| **RateCard** | `zoneFromId`, `zoneToId`, `orderType`, `ratePerKg`, `codSurcharge` | Pricing matrix per zone pair and order segment |
+| **Order** | `customerId`, `agentId`, `status`, `totalCharge`, `scheduledDate` | Core shipment record with full charge breakdown |
+| **TrackingLog** | `orderId`, `status`, `actorId`, `note` | Immutable append-only status history |
+| **Reschedule** | `orderId`, `newDate`, `reason` | Failed delivery reschedule records |
+
+---
+
+## 📡 API Reference
+
+### Authentication
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public | Register new CUSTOMER or AGENT |
+| POST | `/api/auth/login` | Public | Login with email + password |
+| POST | `/api/auth/google-login` | Public | Login or register via Google OAuth |
+
+### Orders
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/orders/preview` | User | Preview charge without creating order |
+| POST | `/api/orders` | Customer/Admin | Create new order |
+| GET | `/api/orders` | User | List orders (role-filtered) |
+| GET | `/api/orders/:id` | User | Get order with tracking timeline |
+| POST | `/api/orders/:id/assign` | Admin | Manually assign agent |
+| POST | `/api/orders/:id/auto-assign` | Admin | Auto-assign nearest agent |
+| PATCH | `/api/orders/:id/status` | Agent/Admin | Update delivery status |
+| POST | `/api/orders/:id/reschedule` | Customer | Reschedule failed delivery |
+
+### Admin
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/admin/dashboard` | Admin | Dashboard metrics |
+| GET | `/api/admin/customers` | Admin | List all customers |
+
+---
+
+## 💰 Rate Calculation Engine
+
+The shipping cost is computed by `backend/src/services/rateCalculator.js`:
+
+1. **Volumetric Weight** = `(length × breadth × height) / 5000` kg
+2. **Billed Weight** = `Math.max(actualWeight, volumetricWeight)`
+3. **Zone Detection** → Resolves pickup and drop pincodes to zones
+4. **Rate Card Lookup** → Finds price matrix for zone pair + B2B/B2C type
+5. **Base Charge** = `billedWeight × ratePerKg`
+6. **COD Surcharge** = `rateCard.codSurcharge` if `paymentType === 'COD'`, else `0`
+7. **Total Charge** = `baseCharge + codSurcharge`
+
+---
+
+## 🌐 Deployment
+
+The application is structured for full **Vercel** deployment (both frontend and backend):
+
+- **Frontend**: Vite build with `vercel.json` SPA rewrites → deployed as Vercel static site
+- **Backend**: Express.js wrapped as `@vercel/node` serverless function via `backend/vercel.json`
+
+> **Note**: For production deployments, update `FRONTEND_URL` in the backend environment variables to your Vercel frontend domain.
+
+---
+
+## 👤 Default Admin Credentials
+
+After running `node prisma/seed.js`, a default admin account is created:
+
+| Field | Value |
+|---|---|
+| Email | `admin@lastmile.com` |
+| Password | `admin123` |
+
+> ⚠️ **Change these credentials immediately** in a production environment.
+
+---
+
+## 📧 Email Notifications
+
+Customers receive automated HTML emails at each of these milestones:
+
+| Status | Email Subject |
+|---|---|
+| CREATED | ✅ Order Confirmed |
+| ASSIGNED | 🚚 Agent Assigned to Your Order |
+| PICKED_UP | 📦 Package Picked Up |
+| IN_TRANSIT | 🔄 Your Package is In Transit |
+| OUT_FOR_DELIVERY | 🛵 Out for Delivery Today |
+| DELIVERED | 🎉 Package Delivered Successfully |
+| FAILED | ⚠️ Delivery Failed — Reschedule Required |
+| RESCHEDULED | 📅 Delivery Rescheduled |
