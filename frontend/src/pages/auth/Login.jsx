@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Mail, Lock, AlertCircle, ArrowRight, Zap, Package, Truck, Shield } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ArrowRight, Zap, Shield } from 'lucide-react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
@@ -11,8 +11,80 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  const slides = [
+    {
+      title: "Order Online",
+      description: "Book shipments instantly with real-time rate calculations and automated address verification.",
+      illustration: (
+        <svg viewBox="0 0 200 150" className="w-full h-44 text-white/90 drop-shadow-lg mx-auto" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="75" y="10" width="50" height="90" rx="6" strokeWidth="3" />
+          <line x1="90" y1="92" x2="110" y2="92" />
+          <path d="M100 35 l15 -8 l15 8 l-15 8 z" fill="rgba(255,255,255,0.1)" />
+          <path d="M100 35 v18 l15 8 v-18 z" />
+          <path d="M130 43 v18 l-15 -8 v-18 z" />
+          <circle cx="50" cy="110" r="16" fill="rgba(255,255,255,0.15)" strokeWidth="0" />
+          <circle cx="50" cy="110" r="16" />
+          <path d="M30 140 c0 -15 10 -20 20 -20 s20 5 20 20" />
+          <circle cx="135" cy="105" r="12" fill="rgba(34, 197, 94, 0.2)" stroke="#22c55e" strokeWidth="0" />
+          <circle cx="135" cy="105" r="12" stroke="#22c55e" />
+          <polyline points="130 105 133 108 140 102" stroke="#22c55e" strokeWidth="3" />
+        </svg>
+      )
+    },
+    {
+      title: "Fast Delivery",
+      description: "Nearest available agent is automatically assigned to ensure swift dispatch and tracking logs.",
+      illustration: (
+        <svg viewBox="0 0 200 150" className="w-full h-44 text-white/90 drop-shadow-lg mx-auto" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="20" y1="125" x2="180" y2="125" strokeWidth="3" strokeDasharray="6 6" />
+          <line x1="15" y1="45" x2="35" y2="45" opacity="0.6" />
+          <line x1="5" y1="65" x2="30" y2="65" opacity="0.4" />
+          <line x1="10" y1="85" x2="25" y2="85" opacity="0.5" />
+          <path d="M60 100 c5 -30 25 -35 45 -35 h20 l15 20 h10 v15 h-15 l-5 15 z" fill="rgba(255,255,255,0.1)" strokeWidth="0" />
+          <path d="M60 100 c5 -30 25 -35 45 -35 h20 l15 20 h10 v15 h-15 l-5 15 z" />
+          <circle cx="135" cy="115" r="14" strokeWidth="3.5" fill="rgba(255,255,255,0.2)" />
+          <circle cx="135" cy="115" r="4" />
+          <circle cx="65" cy="115" r="14" strokeWidth="3.5" fill="rgba(255,255,255,0.2)" />
+          <circle cx="65" cy="115" r="4" />
+          <rect x="42" y="55" width="26" height="26" rx="3" fill="rgba(255,255,255,0.2)" strokeWidth="0" />
+          <rect x="42" y="55" width="26" height="26" rx="3" />
+          <path d="M42 68 h26" />
+        </svg>
+      )
+    },
+    {
+      title: "Your Choice",
+      description: "Manage delivery zones, configuration matrices, and agent statuses through a secure control panel.",
+      illustration: (
+        <svg viewBox="0 0 200 150" className="w-full h-44 text-white/90 drop-shadow-lg mx-auto" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="40" y="25" width="120" height="85" rx="5" strokeWidth="3" fill="rgba(255,255,255,0.05)" strokeWidth="0" />
+          <rect x="40" y="25" width="120" height="85" rx="5" strokeWidth="3" />
+          <line x1="40" y1="40" x2="160" y2="40" />
+          <circle cx="50" cy="32" r="2" />
+          <circle cx="58" cy="32" r="2" />
+          <rect x="55" y="70" width="12" height="40" fill="rgba(255,255,255,0.2)" strokeWidth="0" />
+          <rect x="55" y="70" width="12" height="40" />
+          <rect x="75" y="55" width="12" height="55" fill="rgba(255,255,255,0.2)" strokeWidth="0" />
+          <rect x="75" y="55" width="12" height="55" />
+          <rect x="95" y="78" width="12" height="32" fill="rgba(255,255,255,0.2)" strokeWidth="0" />
+          <rect x="95" y="78" width="12" height="32" />
+          <path d="M115 80 l10 -15 l15 20 l12 -25" stroke="#22c55e" strokeWidth="3" />
+          <circle cx="152" cy="60" r="3" fill="#22c55e" />
+        </svg>
+      )
+    }
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
 
   const navigateUser = (role) => {
     if (role === 'ADMIN') navigate('/admin/dashboard');
@@ -47,48 +119,78 @@ const Login = () => {
     }
   };
 
-  const features = [
-    { Icon: Package, label: 'Smart Order Tracking' },
-    { Icon: Truck, label: 'Real-time Delivery Updates' },
-    { Icon: Shield, label: 'Secure Role-based Access' },
-  ];
+
+
 
   return (
     <div className="min-h-screen bg-gradient-mesh flex">
-      {/* Left brand panel – hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo-700 via-violet-700 to-purple-800 flex-col justify-between p-12">
+      {/* Left brand panel – Onboarding Carousel */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo-700 via-violet-700 to-purple-800 flex-col justify-center items-center p-12">
         {/* animated blobs */}
         <div className="absolute top-[-80px] left-[-80px] w-[360px] h-[360px] rounded-full bg-white/5 animate-blob" />
-        <div className="absolute bottom-[-100px] right-[-60px] w-[420px] h-[420px] rounded-full bg-white/5 animate-blob delay-300" style={{ animationDelay: '3s' }} />
+        <div className="absolute bottom-[-100px] right-[-60px] w-[420px] h-[420px] rounded-full bg-white/5 animate-blob" style={{ animationDelay: '3s' }} />
         <div className="absolute top-1/2 left-1/3 w-[200px] h-[200px] rounded-full bg-indigo-400/10 animate-float" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
-            </div>
-            <span className="text-white font-black text-2xl tracking-tight">Last-Mile</span>
+        {/* Logo top */}
+        <div className="absolute top-10 left-10 flex items-center gap-3 z-10">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
           </div>
-          <h2 className="text-4xl font-black text-white leading-tight mb-4">
-            Delivering the future,<br />
-            <span className="text-indigo-200">one package at a time.</span>
-          </h2>
-          <p className="text-indigo-200 text-base leading-relaxed max-w-sm">
-            Intelligent logistics management with real-time tracking, smart agent assignment, and automated rate calculation.
-          </p>
+          <span className="text-white font-black text-2xl tracking-tight">Last-Mile</span>
         </div>
 
-        <div className="relative z-10 space-y-3">
-          {features.map(({ Icon, label }) => (
-            <div key={label} className="flex items-center gap-3 text-white/80">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                <Icon className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-sm font-medium">{label}</span>
+        {/* Slide card */}
+        <div className="relative z-10 w-full max-w-sm">
+          {/* Card */}
+          <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 transition-all duration-500">
+            {/* Illustration */}
+            <div className="bg-white/10 rounded-2xl p-4 mb-6 flex items-center justify-center min-h-[160px]">
+              {slides[currentSlide].illustration}
             </div>
-          ))}
+
+            {/* Title + Description */}
+            <div className="text-center">
+              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
+                {slides[currentSlide].title}
+              </h2>
+              <p className="text-indigo-200 text-sm leading-relaxed">
+                {slides[currentSlide].description}
+              </p>
+            </div>
+
+            {/* Dot indicators */}
+            <div className="flex justify-center gap-2 mt-6">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentSlide(i)}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === currentSlide
+                      ? 'w-6 h-2.5 bg-white'
+                      : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/60'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Floating badge cards */}
+          <div className="absolute -top-4 -right-6 bg-white rounded-2xl shadow-xl px-4 py-2.5 flex items-center gap-2 animate-float">
+            <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <span className="text-xs font-bold text-slate-700">Delivered!</span>
+          </div>
+
+          <div className="absolute -bottom-4 -left-6 bg-white rounded-2xl shadow-xl px-4 py-2.5 flex items-center gap-2" style={{ animationDelay: '1s' }}>
+            <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </div>
+            <span className="text-xs font-bold text-slate-700">Live Tracking</span>
+          </div>
         </div>
       </div>
+
 
       {/* Right form panel */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10">
